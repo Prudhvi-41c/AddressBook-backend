@@ -1,30 +1,21 @@
 import { Request } from "express";
 import { PoolClient } from "pg"; // Import PoolClient from pg
 import { db } from "../db/dbConfig";
+import { Address } from "../types";
+import { log } from "console";
 
-interface Address {
-    id?: number;
-    title: string;
-    fullname: string;
-    mobilenumber: number;
-    pincode: number;
-    area1: string;
-    area2: string;
-    landmark: string;
-    city: string;
-    state: string;
-}
-
-async function addAddress(data: Address): Promise<Address> {
-    const { area1, area2, city, fullname, landmark, mobilenumber, pincode, state, title } = data;
+async function addAddress(data: Address,userId:number): Promise<Address> {
+    const { area1, area2, city, email, fullname, landmark, mobilenumber, pincode, state, title } = data;
     const query = `
-        INSERT INTO addresses (title, fullname, mobilenumber, pincode, area1, area2, landmark, city, state)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO addresses (title, fullname, mobilenumber,email, pincode, area1, area2, landmark, city, state,user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
         RETURNING *
     `;
-    const values = [title, fullname, Number(mobilenumber), Number(pincode), area1, area2, landmark, city, state];
+    const values = [title, fullname, mobilenumber, email,pincode, area1, area2, landmark, city, state,userId];
     try {
         const result = await db.query(query, values);
+        console.log(result.rows[0]);
+        
         return result.rows[0];
     } catch (error) {
         console.error("Error adding address to database:", error);
@@ -32,10 +23,11 @@ async function addAddress(data: Address): Promise<Address> {
     }
 }
 
-async function getAllAddresses(): Promise<Address[]> {
-    const query = `SELECT * FROM addresses`;
+async function getAllAddresses(userId:number): Promise<Address[]> {
+    const query = `SELECT * FROM addresses where user_id=$1`;
+    const values=[userId]
     try {
-        const result = await db.query(query);
+        const result = await db.query(query,values);
         return result.rows;
     } catch (error) {
         console.error("Error getting all addresses from database:", error);
@@ -43,9 +35,9 @@ async function getAllAddresses(): Promise<Address[]> {
     }
 }
 
-async function getAddressById(id:number): Promise<Address | null> {
-    const query = `SELECT * FROM addresses WHERE id = $1`;
-    const values = [id];
+async function getAddressById(id:number,userId:number): Promise<Address | null> {
+    const query = `SELECT * FROM addresses WHERE id = $1 and user_id=$2`;
+    const values = [id,userId];
     try {
         const result = await db.query(query, values);
         return result.rows[0] || null;
@@ -55,15 +47,15 @@ async function getAddressById(id:number): Promise<Address | null> {
     }
 }
 
-async function updateAddressById(id1: string, data: Address): Promise<Address | null> {
-    const { area1, area2, city, fullname, id,landmark, mobilenumber, pincode, state, title } = data;
+async function updateAddressById(id1: string, data: Address,userId:number): Promise<Address | null> {
+    const { area1, area2, city,email, fullname,landmark, mobilenumber, pincode, state, title } = data;
     const query = `
         UPDATE addresses
-        SET title = $1, fullname = $2, mobilenumber = $3, pincode = $4, area1 = $5, area2 = $6, landmark = $7, city = $8, state = $9
-        WHERE id = $10
+        SET title = $1, fullname = $2, mobilenumber = $3,email=$4, pincode = $5, area1 = $6, area2 = $7, landmark = $8, city = $9, state = $10
+        WHERE id = $11 and user_id=$12
         RETURNING *
     `;
-    const values = [title, fullname, Number(mobilenumber), Number(pincode), area1, area2, landmark, city, state,id];
+    const values = [title, fullname,mobilenumber,email,pincode, area1, area2, landmark, city, state, Number(id1),userId];
     try {
         const result = await db.query(query, values);
         return result.rows[0] || null;
@@ -73,9 +65,9 @@ async function updateAddressById(id1: string, data: Address): Promise<Address | 
     }
 }
 
-async function deleteAddressById(id:number): Promise<Address | null> {
-    const query = `DELETE FROM addresses WHERE id = $1 RETURNING *`;
-    const values = [id];
+async function deleteAddressById(id:number,userId:number): Promise<Address | null> {
+    const query = `DELETE FROM addresses WHERE id = $1 and user_id=$2 RETURNING *`;
+    const values = [id,userId];
     try {
         const result = await db.query(query, values);
         return result.rows[0] || null;
